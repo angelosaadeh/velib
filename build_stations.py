@@ -23,10 +23,12 @@ Columns:
 
 house_number, street, postal_code and city come from the French government geocoder (data.geopf.fr), in one batch request
 for the stations not yet in postal_codes_cache.csv (next to stations.csv). Only station ids and
-coordinates are sent. Reruns reuse the cache, so they make no request unless a station is new
-or its coordinates changed. --no-geocode never calls the network; uncached stations are left
-empty. If the request fails, those stations are left empty and the rest of the file is still
-written.
+coordinates are sent, with indexes=address so every result comes from the Base Adresse
+Nationale. The cache records the UTC date each station was geocoded (geocoded_at). Reruns reuse
+the cache, so they make no request unless a station is new, its coordinates changed or its
+geocoded_at is empty (rows cached before that column existed are re-geocoded once).
+--no-geocode never calls the network; uncached stations are left empty. If the request fails,
+those stations are left empty and the rest of the file is still written.
 
 UTF-8, comma-delimited like snapshots.csv; the csv module quotes any name that contains a
 comma or quote. The file is rebuilt from scratch on every run. Stdlib only.
@@ -37,11 +39,12 @@ import io
 import json
 import urllib.request
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 INFO_URL = "https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json"
 GEOCODER_URL = "https://data.geopf.fr/geocodage/reverse/csv/"
-CACHE_FIELDS = ["station_id", "lat", "lon", "house_number", "street", "postal_code", "city"]
+CACHE_FIELDS = ["station_id", "lat", "lon", "house_number", "street", "postal_code", "city", "geocoded_at"]
 
 
 def download_info(path):
@@ -80,7 +83,9 @@ def geocode(todo):
     for s in todo:
         w.writerow([s["station_id"], s["lat"], s["lon"]])
     boundary = uuid.uuid4().hex
-    body = (f'--{boundary}\r\nContent-Disposition: form-data; name="data"; filename="in.csv"\r\n'
+    # indexes=address: Base Adresse Nationale only (already the default, made explicit)
+    body = (f'--{boundary}\r\nContent-Disposition: form-data; name="indexes"\r\n\r\naddress\r\n'
+            f'--{boundary}\r\nContent-Disposition: form-data; name="data"; filename="in.csv"\r\n'
             f"Content-Type: text/csv\r\n\r\n").encode() + buf.getvalue().encode("utf-8") \
         + f"\r\n--{boundary}--\r\n".encode()
     req = urllib.request.Request(GEOCODER_URL, data=body, method="POST", headers={
@@ -134,15 +139,17 @@ def main():
     todo = [s for s in stations
             if not (s["station_id"] in cache and cache[s["station_id"]]["postal_code"]
                     and "city" in cache[s["station_id"]]
+                    and cache[s["station_id"]].get("geocoded_at")
                     and float(cache[s["station_id"]]["lat"]) == s["lat"]
                     and float(cache[s["station_id"]]["lon"]) == s["lon"])]
     if todo and not args.no_geocode:
         try:
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             for sid, (number, street, code, city) in geocode(todo).items():
                 s = next(x for x in todo if x["station_id"] == sid)
                 cache[sid] = {"station_id": sid, "lat": s["lat"], "lon": s["lon"],
                               "house_number": number, "street": street,
-                              "postal_code": code, "city": city}
+                              "postal_code": code, "city": city, "geocoded_at": today}
             save_cache(cache_path, cache)
             print(f"geocoded {len(todo)} stations -> {cache_path}")
         except Exception as e:  # keep going: postal_code stays empty for those stations

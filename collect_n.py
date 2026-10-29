@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Same as collect.py, but the interval (in minutes) is a positional argument and
-output goes to data_<minutes>/ (raw/ + fetch_log.csv).
+"""Fetch the Velib station_status feed every <minutes> minutes. Output goes to
+data_<minutes>/ (raw/ + fetch_log.csv).
 
 Usage:
     python3 collect_n.py 1                  # every 1 min until Ctrl+C -> data_1/

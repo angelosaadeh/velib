@@ -31,5 +31,5 @@ python build_stations.py data_1/snapshots.csv
 
 - Downloads `station_information.json` into `data_1/` via the [station_information API](https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json).
 - Cross-references it with `data_1/snapshots.csv`.
-- Builds `stations.csv` with columns: `station_id`, `station_code`, `name`, `lat`, `lon`, `capacity_official`, `observed_capacity`.
+- Builds `stations.csv` with columns: `station_id`, `station_code`, `name`, `lat`, `lon`, `capacity_official`, `observed_capacity`, `capacity_gap` (official minus observed; negative means more bikes + docks were seen than the official capacity).
 - Geocodes each station's coordinates and adds: `house_number`, `street`, `postal_code`, `city`.

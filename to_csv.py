@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert raw Velib station_status snapshots into two compact CSVs.
+"""Convert raw Velib station_status snapshots into one compact CSV.
 
 Usage:
     python3 to_csv.py data_1/raw                 # appends new snapshots to data_1/snapshots.csv
