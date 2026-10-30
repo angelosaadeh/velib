@@ -2,6 +2,7 @@ data_1/
 .DS_Store
 papers/
 data/
-issues.mf
+issues.md
 check_parquet.ipynb
 
+__pycache__/

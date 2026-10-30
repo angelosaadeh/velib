@@ -102,6 +102,36 @@ comes first (03:08:44 before 03:08:45 Paris time). Which one reflects the newer 
 - Affects: anything that assumes `src_ts` follows fetch order; spacing between snapshots (a 1 s step next to a
   76 s one).
 
+This is one case of issue 17: the pair has the same counts and only `last_reported` differs.
+
+### 17. Re-stamped snapshots a few seconds apart
+
+Found 29 Oct 2026 by velib-c7, on Parquet built from the Mac's raw files (3,086 snapshots, 27–29 Oct 2026) and
+its `fetch_log.csv`. About once an hour (39 in 52.5 h, at most 2 in one clock hour), at no fixed minute, a fetch returns the previous snapshot's counts
+under a new `lastUpdatedOther` only 1–9 s later, although the fetches are 60 s apart. 39 of the 3,085 spacings
+between snapshots are 1–9 s; in all 39 pairs `bikes`, `docks`, `mechanical`, `ebike` and the flags are identical
+at every station. `last_reported` differs at 0–45 stations (3 pairs are identical in every column). The
+spacings around a pair are normal (~61 s), so the pair stands for one minute of data, not two. Fetch times in
+UTC:
+
+```
+fetched_at_utc        lastUpdatedOther   change
+2026-10-27 10:23:53   1793096630
+2026-10-27 10:24:53   1793096634          +4 s   <- same counts as the snapshot before
+```
+
+The same feed state can also get a different `lastUpdatedOther` for different clients. On 28 Oct 2026 between
+16:18 and 22:15, 7 snapshots differ by 1–3 s in `src_ts` between the Mac's collector and the violette2 build
+(published on the Hub), with identical counts. Deduplicating on `lastUpdatedOther` (issue 4) does not merge
+such copies, so merging the raw files of both collectors for the same minutes would add re-stamped pairs.
+
+Not yet explained: 35 more pairs of consecutive snapshots at normal spacing also have the same `bikes` and
+`docks` at every station.
+
+- Detect: `t = np.sort(df.src_ts.unique()); np.diff(t) < 10`, then compare the two snapshots.
+- Affects: per-minute rates and step counts (a pair adds a zero-change step and shortens the spacing);
+  snapshot counts per day; merging collectors.
+
 ## Stations
 
 ### 7. Stale `last_reported`
